@@ -6,7 +6,9 @@ import com.github.kugelsoft.paramscanner.vo.JavaMethod;
 import org.objectweb.asm.ClassReader;
 
 import java.io.BufferedInputStream;
-import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -17,41 +19,64 @@ import java.util.List;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * A class that scans jar files and finds calls to a method
  * 
  * @author Rodrigo de Bona Sartor
  */
-public class JavaScanner implements Closeable {
+public class JavaScanner {
 	
-	private JarFile jarFile;
-	
+	private String jarPath;
+
 	/**
 	 * Create a new JavaScanner with the JarFile containing at <b>jarPath</b>
 	 * @param jarPath OS path to the jar file that contains the class
-     * @throws IOException if an I/O error has occurred
      * @throws SecurityException if access to the file is denied
      *         by the SecurityManager
 	 */
-	public JavaScanner(String jarPath) throws IOException {
-		this.jarFile = new JarFile(jarPath);
+	public JavaScanner(String jarPath) {
+		this.jarPath = jarPath;
 	}
 
-	public HashMap<String, JavaClass> scanAllClasses() throws IOException {
+	public HashMap<String, JavaClass> scanAllClasses() {
 		ScanClassVisitor scanClassVisitor = new ScanClassVisitor();
-		Enumeration<JarEntry> entries = this.jarFile.entries();
-		while (entries.hasMoreElements()) {
-			JarEntry entry = entries.nextElement();
+		return scanAllClasses(scanClassVisitor, this.jarPath);
+	}
 
-			String name = entry.getName();
-			if (name.endsWith(".class") && !name.endsWith("_.class")) {
-				InputStream stream = new BufferedInputStream(this.jarFile.getInputStream(entry), 1024);
-				ClassReader reader = new ClassReader(stream);
+	private HashMap<String, JavaClass> scanAllClasses(ScanClassVisitor scanClassVisitor, String path) {
+		JarFile jarFile = null;
+		try {
+			jarFile = new JarFile(path);
+			Enumeration<JarEntry> entries = jarFile.entries();
+			while (entries.hasMoreElements()) {
+				JarEntry entry = entries.nextElement();
 
-				reader.accept(scanClassVisitor, 0);
+				String name = entry.getName();
+				if (name.endsWith(".class") && !name.endsWith("_.class")) {
+					InputStream stream = new BufferedInputStream(jarFile.getInputStream(entry), 1024);
+					ClassReader reader = new ClassReader(stream);
 
-				stream.close();
+					reader.accept(scanClassVisitor, 0);
+
+					stream.close();
+				} else if (name.startsWith("kugel") && !name.contains("/") && name.endsWith(".jar")) { // escanear dependencias que estão empacotadas em JAR como o kugel-report
+					File file = unzipFile(path, name);
+					scanAllClasses(scanClassVisitor, file.getAbsolutePath());
+					file.delete();
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (jarFile != null) {
+				try {
+					jarFile.close();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
 			}
 		}
 		HashMap<String, JavaClass> classHashMap = scanClassVisitor.getClassMap();
@@ -100,15 +125,43 @@ public class JavaScanner implements Closeable {
 		return methods;
 	}
 
-	/**
-	 * Closes the jar file
-	 * @throws IOException if an I/O error has occurred
-	 */
-	public void close() throws IOException {
-		if( this.jarFile != null ){
-			this.jarFile.close();
-		}
-	}
+	private File unzipFile(String path, String name) {
+		int index = name.lastIndexOf(".");
+		try {
+			File file = File.createTempFile(name.substring(0, index), name.substring(index));
+			System.out.println("Unzipping " + path + "\\" + name + " to " + file.getAbsolutePath());
+			boolean found = false;
 
-	
+			ZipInputStream zis = new ZipInputStream(new FileInputStream(path));
+			ZipEntry ze = zis.getNextEntry();
+			while( ze != null ){
+				if (ze.getName().equals(name)) {
+					found = true;
+
+					FileOutputStream fos = new FileOutputStream(file);
+					int len;
+					byte[] buffer = new byte[1024 * 5000];
+					while ((len = zis.read(buffer)) > 0) {
+						fos.write(buffer, 0, len);
+					}
+
+					fos.close();
+					break;
+				}
+				ze = zis.getNextEntry();
+			}
+			zis.close();
+
+			if (found) {
+				System.out.println("Unzip finished");
+			} else {
+				System.out.println("File not found");
+			}
+
+			return file;
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+		return null;
+	}
 }

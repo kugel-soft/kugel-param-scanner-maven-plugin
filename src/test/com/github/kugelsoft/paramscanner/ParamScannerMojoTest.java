@@ -13,7 +13,7 @@ public class ParamScannerMojoTest {
 	public void createMapProgByParam() throws Exception {
 		ParamScannerMojo mojo = new ParamScannerMojo();
 
-		File file = new File("M:\\ERP Web REST\\ear-teste\\kugelapp_v552.ear");
+		File file = new File("M:\\ERP Web REST\\ear-teste\\kugelapp_vteste1.ear");
 		if (!file.exists()) {
 			Assert.fail("Teste deve ser executado apenas dentro do ambiente da Kugel.");
 		}
@@ -24,6 +24,7 @@ public class ParamScannerMojoTest {
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosCopiarDC0045", "PW0045A");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosCopiarDC0045", "PW0072B");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroChaveGoogleMaps", "MENU");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroImagemCarimboMAPAAlimentacaoAnimal", "PW1533A");
 	}
 
 	@Test

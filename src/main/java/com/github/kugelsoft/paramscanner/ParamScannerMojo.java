@@ -125,7 +125,8 @@ public class ParamScannerMojo extends AbstractMojo {
 
 	protected Map<String, Set<String>> createMapProgByParam(File file) {
 		TreeMap<String, Set<String>> progByParamMap = new TreeMap<>();
-		try (JavaScanner javaScanner = new JavaScanner(file.getAbsolutePath()) ){
+		try {
+			JavaScanner javaScanner = new JavaScanner(file.getAbsolutePath());
 			HashMap<String, JavaClass> javaClassesMap = javaScanner.scanAllClasses();
 
 			List<JavaClass> javaClasses = findAllClassesThatExtendsOrImplements(javaClassesMap.values(), "com/kugel/domain/param/Parametro");
