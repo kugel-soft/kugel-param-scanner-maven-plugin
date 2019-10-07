@@ -26,7 +26,7 @@ import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-@Mojo( name = "scanner" )
+@Mojo( name = "scanner", threadSafe = true )
 public class ParamScannerMojo extends AbstractMojo {
 
 	@Parameter( property = "scanner.directory", defaultValue = "${project.build.directory}" )
