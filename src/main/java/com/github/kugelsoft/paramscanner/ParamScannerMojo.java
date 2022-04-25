@@ -14,20 +14,15 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 @Mojo( name = "scanner", threadSafe = true )
 public class ParamScannerMojo extends AbstractMojo {
+
+	private Collection<JavaClass> todasClasses;
+	private HashMap<String,List<JavaClass>> classesExtendsMap;
 
 	@Parameter( property = "scanner.directory", defaultValue = "${project.build.directory}" )
 	String directory;
@@ -127,9 +122,17 @@ public class ParamScannerMojo extends AbstractMojo {
 		TreeMap<String, Set<String>> progByParamMap = new TreeMap<>();
 		try {
 			JavaScanner javaScanner = new JavaScanner(file.getAbsolutePath());
-			HashMap<String, JavaClass> javaClassesMap = javaScanner.scanAllClasses();
+			todasClasses = javaScanner.scanAllClasses().values();
+			classesExtendsMap = new HashMap<>();
+			for (JavaClass javaClass : todasClasses) {
+				for (JavaClass superClass : javaClass.getInterfacesAndSuperClass()) {
+					List<JavaClass> classes = classesExtendsMap
+							.computeIfAbsent(superClass.getName(), k -> new ArrayList<>());
+					classes.add(javaClass);
+				}
+			}
 
-			List<JavaClass> javaClasses = findAllClassesThatExtendsOrImplements(javaClassesMap.values(), "com/kugel/domain/param/Parametro");
+			List<JavaClass> javaClasses = findAllClassesThatExtendsOrImplements("com/kugel/domain/param/Parametro");
 			for( JavaClass javaClass : javaClasses ){
 				if (!javaClass.getName().equals("com/kugel/domain/param/Parametro")) {
 					getLog().debug("Name: " + javaClass.getName());
@@ -155,33 +158,20 @@ public class ParamScannerMojo extends AbstractMojo {
 		return progByParamMap;
 	}
 
-	private List<JavaClass> findAllClassesThatExtendsOrImplements(Collection<JavaClass> allClasses, String className) {
-		List<JavaClass> javaClasses = new ArrayList<>();
-		for (JavaClass javaClass : allClasses) {
-			if (classeExtendsOrImplements(javaClass, className)) {
-				javaClasses.add(javaClass);
-			}
-		}
-		return javaClasses;
-	}
-
-	private boolean classeExtendsOrImplements(JavaClass javaClass, String className) {
-		if (javaClass.getName().equals(className)) {
-			return true;
-		}
-		for (JavaClass c : javaClass.getInterfacesAndSuperClass()) {
-			if (classeExtendsOrImplements(c, className)) {
-				return true;
-			}
-		}
-		return false;
+	private List<JavaClass> findAllClassesThatExtendsOrImplements(String className) {
+		return classesExtendsMap.getOrDefault(className, Collections.emptyList());
 	}
 
 	private void scanProgByParam(Map<String, Set<String>> progByParamMap, String paramClassName, JavaMethod method, String prefix) {
+		if (method.getJavaClass().getSimpleClassName().equals("GenericRest")) {
+			getLog().debug("Ignorando GenericRest pois utilizado por todos os programas");
+			return;
+		}
+
 		getLog().debug(prefix + " " + method.getJavaClass().getSimpleClassName() + "." + method.getMethodName() + " - " + method.getMethodDesc());
 
 		String simpleClassName = method.getJavaClass().getSimpleClassName();
-		if (simpleClassName.startsWith("PW")) {
+		if (isClassePrograma(method, simpleClassName)) {
 			String prog = simpleClassName.substring(0, 7);
 			putProgByParam(progByParamMap, paramClassName, prog);
 		} else if(simpleClassName.equals("AuthenticationService") || simpleClassName.equals("MenuRest")) {
@@ -193,6 +183,29 @@ public class ParamScannerMojo extends AbstractMojo {
 		for(JavaMethod caller : method.getCallers()) {
 			scanProgByParam(progByParamMap, paramClassName, caller, prefix + "-");
 		}
+
+		List<JavaClass> classes = findAllClassesThatExtendsOrImplements(method.getJavaClass().getName());
+		for (JavaClass extJavaClass : classes) {
+			if (!extJavaClass.getName().equals(method.getJavaClass().getName())) {
+				for (JavaMethod extMethod : extJavaClass.getMethods()) {
+					if (extMethod.getMethodName().equals(method.getMethodName()) &&
+							extMethod.getMethodDesc().equals(method.getMethodDesc())) {
+						scanProgByParam(progByParamMap, paramClassName, extMethod, prefix + "-");
+					}
+				}
+			}
+		}
+	}
+
+	private boolean isClassePrograma(JavaMethod method, String simpleClassName) {
+		if (simpleClassName.startsWith("PW")) {
+			return true;
+		}
+		if (simpleClassName.startsWith("PR") &&
+				method.getJavaClass().getName().replace("/", ".").startsWith("com.kugel.service.prjava") ) {
+			return true;
+		}
+		return false;
 	}
 
 	private void putProgByParam(Map<String, Set<String>> progByParamMap, String paramClassName, String prog) {

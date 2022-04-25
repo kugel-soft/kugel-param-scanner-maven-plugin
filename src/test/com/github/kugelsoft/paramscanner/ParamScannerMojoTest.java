@@ -13,18 +13,20 @@ public class ParamScannerMojoTest {
 	public void createMapProgByParam() throws Exception {
 		ParamScannerMojo mojo = new ParamScannerMojo();
 
-		File file = new File("M:\\ERP Web REST\\ear-teste\\kugelapp_vteste1.ear");
+		File file = new File("M:\\ERP Web REST\\ear-teste\\kugelapp_vteste2.ear");
 		if (!file.exists()) {
 			Assert.fail("Teste deve ser executado apenas dentro do ambiente da Kugel.");
 		}
 
 		Map<String, Set<String>> mapProgByParam = mojo.createMapProgByParam(file);
 
-		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosAnaliseMinhaGranja", "TAREFA_AGENDADA");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosAnaliseMinhaGranja", "PW90007");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosCopiarDC0045", "PW0045A");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosCopiarDC0045", "PW0072B");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroChaveGoogleMaps", "MENU");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroImagemCarimboMAPAAlimentacaoAnimal", "PW1533A");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaCodTransacaoComercialTransferencia", "PR51946");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaPortadorPix", "PW00323");
 	}
 
 	@Test
