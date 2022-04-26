@@ -11,11 +11,13 @@ public class JavaClass implements Comparable<JavaClass> {
 	private List<JavaClass> interfaces;
 	private final String name;
 	private final Set<JavaMethod> methods;
+	private final Set<JavaClass> classesUsesAsField;
 
 	public JavaClass(String name) {
 		this.name = name;
 		this.methods = new HashSet<>();
 		this.interfaces = new ArrayList<>();
+		this.classesUsesAsField = new HashSet<>();
 	}
 
 	public String getName() {
@@ -78,6 +80,10 @@ public class JavaClass implements Comparable<JavaClass> {
 			packageName = this.name.substring( 0, index ).replace("/", ".");
 		}
 		return packageName;
+	}
+
+	public Set<JavaClass> getClassesUsesAsField() {
+		return classesUsesAsField;
 	}
 
 	@Override

@@ -3,13 +3,11 @@ package com.github.kugelsoft.paramscanner.visitors;
 import com.github.kugelsoft.paramscanner.vo.JavaClass;
 import com.github.kugelsoft.paramscanner.vo.JavaMethod;
 import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.TreeSet;
 
 public class ScanClassVisitor extends ClassVisitor {
 
@@ -47,26 +45,32 @@ public class ScanClassVisitor extends ClassVisitor {
 		
 		return this.methodVisitor;
 	}
-	
-	public Set<JavaMethod> getCallers() {
-		return this.methodVisitor.getCallers();
+
+	@Override
+	public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
+		String typeClassName = desc.substring(1).replace(";", "");
+		if (typeClassName.startsWith("com/kugel/")) {
+			JavaClass callerClass = this.methodVisitor.getCallerClass();
+			JavaClass typeClass = getJavaClass(typeClassName);
+			typeClass.getClassesUsesAsField().add(callerClass);
+		}
+		return super.visitField(access, name, desc, signature, value);
 	}
 
 	class ThisMethodVisitor extends MethodVisitor {
 		
-		private Set<JavaMethod> callers;
-
 		private String callerClassName;
 		private String callerMethodName;
 		private String callerMethodDesc;
-		
+		private JavaClass callerClass;
+
 		ThisMethodVisitor() {
 			super(Opcodes.ASM5);
-			this.callers = new TreeSet<>();
 		}
 
 		void setActualClassName(String actualClassName) {
 			this.callerClassName = actualClassName;
+			this.callerClass = getJavaClass(callerClassName);
 		}
 		
 		void setActualMethodName(String actualMethodName) {
@@ -77,17 +81,16 @@ public class ScanClassVisitor extends ClassVisitor {
 			this.callerMethodDesc = actualMethodDesc;
 		}
 		
-		Set<JavaMethod> getCallers() {
-			return callers;
+		public JavaClass getCallerClass() {
+			return callerClass;
 		}
-		
+
 		@Override
 		public void visitMethodInsn(int opcode, String calleeClassName, String calleeMethodName, String calleeMethodDesc, boolean itf) {
 			if (calleeClassName.startsWith("com/kugel/")) {
 				JavaClass calleeClass = getJavaClass(calleeClassName);
 				JavaMethod calleeMethod = calleeClass.addMethod(calleeMethodName, calleeMethodDesc);
 
-				JavaClass callerClass = getJavaClass(callerClassName);
 				JavaMethod callerMethod = callerClass.addMethod(callerMethodName, callerMethodDesc);
 
 				calleeMethod.getCallers().add(callerMethod);
@@ -100,7 +103,6 @@ public class ScanClassVisitor extends ClassVisitor {
 				JavaClass calleeClass = getJavaClass(type);
 				JavaMethod calleeMethod = calleeClass.addMethod("classReference", "");
 
-				JavaClass callerClass = getJavaClass(callerClassName);
 				JavaMethod callerMethod = callerClass.addMethod(callerMethodName, callerMethodDesc);
 
 				calleeMethod.getCallers().add(callerMethod);
@@ -116,4 +118,5 @@ public class ScanClassVisitor extends ClassVisitor {
 		}
 		return javaClass;
 	}
+
 }

@@ -17,6 +17,10 @@ public class JavaMethod implements Comparable<JavaMethod> {
 		this.callers = new HashSet<>();
 	}
 
+	public static JavaMethod emptyMethod(JavaClass javaClass) {
+		return new JavaMethod(javaClass, "", "");
+	}
+
 	public JavaClass getJavaClass() {
 		return javaClass;
 	}

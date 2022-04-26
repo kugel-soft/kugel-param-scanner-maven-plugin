@@ -21,6 +21,8 @@ import java.util.zip.ZipFile;
 @Mojo( name = "scanner", threadSafe = true )
 public class ParamScannerMojo extends AbstractMojo {
 
+	private static final String PREFIXO_PARAMETRO_TABELA_CAMPOS = "ParametroTabelaCampos";
+
 	private Collection<JavaClass> todasClasses;
 	private HashMap<String,List<JavaClass>> classesExtendsMap;
 
@@ -39,6 +41,9 @@ public class ParamScannerMojo extends AbstractMojo {
 	@Parameter( property = "scanner.jsonFileProject", defaultValue = "kugel-domain" )
 	String jsonFileProject;
 
+	@Parameter( property = "scanner.jsonFileCopyOrigin", defaultValue = "" )
+	String jsonFileCopyOrigin;
+
 	public void execute() throws MojoExecutionException {
 		File jarFile = new File(directory, finalName + ".jar");
 		if (!jarFile.exists()) {
@@ -47,46 +52,50 @@ public class ParamScannerMojo extends AbstractMojo {
 				jarFile = new File(directory, finalName + ".war");
 			}
 		}
+		File paramFile;
+		if (jsonFileCopyOrigin == null || jsonFileCopyOrigin.isEmpty()) {
+			getLog().info("Escaneando parâmetros em: " + jarFile.getAbsolutePath());
 
-		getLog().info( "Escaneando parâmetros em: " + jarFile.getAbsolutePath() );
+			Map<String, Set<String>> progByParamMap = createMapProgByParam(jarFile);
 
-		Map<String,Set<String>> progByParamMap = createMapProgByParam(jarFile);
+			File dir = new File(outputDirectory);
+			if (!dir.exists()) {
+				dir.mkdirs();
+			}
+			paramFile = new File(dir, jsonFileDestination);
 
-		File dir = new File(outputDirectory);
-		if ( !dir.exists() ) {
-			dir.mkdirs();
-		}
-		File paramFile = new File(dir, jsonFileDestination);
+			getLog().info("Escrevendo arquivo: " + paramFile.getAbsolutePath());
 
-		getLog().info("Escrevendo arquivo: " + paramFile.getAbsolutePath());
+			try (BufferedWriter writer = Files.newBufferedWriter(paramFile.toPath(), StandardCharsets.UTF_8)) {
+				writer.append("{");
 
-		try (BufferedWriter writer = Files.newBufferedWriter(paramFile.toPath(), StandardCharsets.UTF_8)) {
-			writer.append("{");
+				int index = 0;
+				for (Map.Entry<String, Set<String>> entry : progByParamMap.entrySet()) {
+					if (index > 0) {
+						writer.append(",");
+					}
 
-			int index = 0;
-			for (Map.Entry<String,Set<String>> entry : progByParamMap.entrySet()) {
-				if (index > 0) {
-					writer.append(",");
+					writer.newLine();
+					String arrayValues = "";
+					Set<String> progs = entry.getValue();
+					if (!progs.isEmpty()) {
+						arrayValues = "\"" + String.join("\",\"", progs) + "\"";
+					}
+					writer.append(String.format("  \"%s\": [%s]", entry.getKey(), arrayValues));
+					index++;
 				}
 
 				writer.newLine();
-				String arrayValues = "";
-				Set<String> progs = entry.getValue();
-				if (!progs.isEmpty()) {
-					arrayValues = "\"" + String.join("\",\"", progs) + "\"";
-				}
-				writer.append( String.format("  \"%s\": [%s]", entry.getKey(), arrayValues ) );
-				index++;
+				writer.append("}");
+
+				writer.close();
+			} catch (Exception e) {
+				throw new MojoExecutionException("Error creating file " + paramFile, e);
 			}
-
-			writer.newLine();
-			writer.append("}");
-
-			writer.close();
-		} catch (Exception e ) {
-			throw new MojoExecutionException( "Error creating file " + paramFile, e );
+		} else {
+			paramFile = new File(jsonFileCopyOrigin);
+			getLog().info("Ignorando escaneamento de parâmetros pois deve copiar apenas de " + paramFile.getAbsolutePath());
 		}
-
 		copyParamFileToJar(paramFile, jarFile);
 	}
 
@@ -147,6 +156,14 @@ public class ParamScannerMojo extends AbstractMojo {
 
 						Set<String> progs = progByParamMap.get(className);
 						if (progs == null || progs.isEmpty()) {
+							int idx = className.indexOf(PREFIXO_PARAMETRO_TABELA_CAMPOS);
+							if (idx >= 0) {
+								idx += PREFIXO_PARAMETRO_TABELA_CAMPOS.length();
+								String programa = className.substring(idx);
+								progs = putProgByParam(progByParamMap, className, programa);
+							}
+						}
+						if (progs == null || progs.isEmpty()) {
 							getLog().warn("Não encontrou chamadas para a classe " + className);
 						}
 					}
@@ -163,54 +180,93 @@ public class ParamScannerMojo extends AbstractMojo {
 	}
 
 	private void scanProgByParam(Map<String, Set<String>> progByParamMap, String paramClassName, JavaMethod method, String prefix) {
-		if (method.getJavaClass().getSimpleClassName().equals("GenericRest")) {
+		JavaClass javaClass = method.getJavaClass();
+		if (javaClass.getSimpleClassName().equals("GenericRest")) {
 			getLog().debug("Ignorando GenericRest pois utilizado por todos os programas");
 			return;
 		}
 
-		getLog().debug(prefix + " " + method.getJavaClass().getSimpleClassName() + "." + method.getMethodName() + " - " + method.getMethodDesc());
+		getLog().debug(prefix + " " + javaClass.getSimpleClassName() + "." + method.getMethodName() + " - " + method.getMethodDesc());
+		prefix += "-";
 
-		String simpleClassName = method.getJavaClass().getSimpleClassName();
-		if (isClassePrograma(method, simpleClassName)) {
+		String simpleClassName = javaClass.getSimpleClassName();
+		if (isClassePrograma(javaClass)) {
 			String prog = simpleClassName.substring(0, 7);
 			putProgByParam(progByParamMap, paramClassName, prog);
-		} else if(simpleClassName.equals("AuthenticationService") || simpleClassName.equals("MenuRest")) {
+		} else if (isClasseMenu(javaClass)) {
 			putProgByParam(progByParamMap, paramClassName, "MENU");
-		} else if(method.getJavaClass().getSuperClass().getSimpleClassName().equals("TarefaAgendadaAbstract")) {
+		} else if (isClasseTarefaAgendadaAntiga(javaClass)) {
 			putProgByParam(progByParamMap, paramClassName, "TAREFA_AGENDADA");
+		} else if (isClasseZoomDaoOuZoomService(javaClass)) {
+			for (JavaClass javaClassUsesAsField : javaClass.getClassesUsesAsField()) {
+				scanProgByParam(progByParamMap, paramClassName, JavaMethod.emptyMethod(javaClassUsesAsField), prefix);
+			}
 		}
 
-		for(JavaMethod caller : method.getCallers()) {
-			scanProgByParam(progByParamMap, paramClassName, caller, prefix + "-");
+		for (JavaMethod caller : method.getCallers()) {
+			scanProgByParam(progByParamMap, paramClassName, caller, prefix);
 		}
 
-		List<JavaClass> classes = findAllClassesThatExtendsOrImplements(method.getJavaClass().getName());
+		List<JavaClass> classes = findAllClassesThatExtendsOrImplements(javaClass.getName());
 		for (JavaClass extJavaClass : classes) {
-			if (!extJavaClass.getName().equals(method.getJavaClass().getName())) {
+			if (!extJavaClass.getName().equals(javaClass.getName())) {
 				for (JavaMethod extMethod : extJavaClass.getMethods()) {
 					if (extMethod.getMethodName().equals(method.getMethodName()) &&
 							extMethod.getMethodDesc().equals(method.getMethodDesc())) {
-						scanProgByParam(progByParamMap, paramClassName, extMethod, prefix + "-");
+						scanProgByParam(progByParamMap, paramClassName, extMethod, prefix);
 					}
 				}
 			}
 		}
 	}
 
-	private boolean isClassePrograma(JavaMethod method, String simpleClassName) {
-		if (simpleClassName.startsWith("PW")) {
+	private boolean isClassePrograma(JavaClass javaClass) {
+		if (javaClass.getSimpleClassName().startsWith("PW")) {
 			return true;
 		}
-		if (simpleClassName.startsWith("PR") &&
-				method.getJavaClass().getName().replace("/", ".").startsWith("com.kugel.service.prjava") ) {
+		if (javaClass.getSimpleClassName().startsWith("PR") &&
+				javaClass.getName().replace("/", ".").startsWith("com.kugel.service.prjava") ) {
 			return true;
 		}
 		return false;
 	}
 
-	private void putProgByParam(Map<String, Set<String>> progByParamMap, String paramClassName, String prog) {
+	private boolean isClasseMenu(JavaClass javaClass) {
+		return javaClass.getSimpleClassName().equals("AuthenticationService") ||
+				javaClass.getSimpleClassName().equals("MenuRest");
+	}
+
+	private boolean isClasseTarefaAgendadaAntiga(JavaClass javaClass) {
+		return javaClass.getSuperClass().getSimpleClassName().equals("TarefaAgendadaAbstract");
+	}
+
+	private boolean isClasseZoomDaoOuZoomService(JavaClass javaClass) {
+		List<JavaClass> superClasses = obterTodasSuperClasses(javaClass);
+		for (JavaClass superJavaClass : superClasses) {
+			if (superJavaClass.getSimpleClassName().equals("ZoomDAO") ||
+					superJavaClass.getSimpleClassName().equals("GenericZoomService")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private Set<String> putProgByParam(Map<String, Set<String>> progByParamMap, String paramClassName, String prog) {
 		Set<String> progSet = progByParamMap.computeIfAbsent(paramClassName, k -> new TreeSet<>());
 		progSet.add(prog);
+		return progSet;
+	}
+
+	private List<JavaClass> obterTodasSuperClasses(JavaClass javaClass) {
+		List<JavaClass> superClasses = new ArrayList<>();
+		superClasses.add(javaClass.getSuperClass());
+		for (int i = 0; i < superClasses.size(); i++) {
+			JavaClass classeAtual = superClasses.get(i);
+			if (classeAtual.getSuperClass() != null) {
+				superClasses.add(classeAtual.getSuperClass());
+			}
+		}
+		return superClasses;
 	}
 
 }
