@@ -1,12 +1,11 @@
 package com.github.kugelsoft.paramscanner;
 
-import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -14,17 +13,27 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static org.junit.Assert.*;
 
 public class ParamScannerMojoTest {
+
+	private static File dirEarteste;
+	@BeforeClass
+	public static void before() {
+		dirEarteste = new File("M:\\ERP Web REST\\ear-teste\\");
+		if (!dirEarteste.exists()) {
+			dirEarteste = new File("/mnt/driveM/ERP Web REST/ear-teste/");
+			if (!dirEarteste.exists()) {
+				fail("Teste deve ser executado apenas dentro do ambiente da Kugel.");
+			}
+		}
+	}
 
 	@Test
 	public void createMapProgByParam() throws Exception {
 		ParamScannerMojo mojo = new ParamScannerMojo();
 
-		File file = new File("M:\\ERP Web REST\\ear-teste\\kugelapp_vteste2.ear");
-		if (!file.exists()) {
-			Assert.fail("Teste deve ser executado apenas dentro do ambiente da Kugel.");
-		}
+		File file = new File(dirEarteste, "kugelapp_vteste3.ear");
 
 		Map<String, Set<String>> mapProgByParam = mojo.createMapProgByParam(file);
 
@@ -44,11 +53,14 @@ public class ParamScannerMojoTest {
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroNumDiasNfZoom", "PW00120");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroNumDiasNfZoom", "PW0977A");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaCamposPW00182", "PW00182");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatDefensivos", "PW00099");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatSementes", "PW00099");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatFertilizantes", "PW00099");
 	}
 
 	@Test
 	public void execute() throws Exception {
-		File fileOrigem = new File("M:\\ERP Web REST\\ear-teste\\kugelapp_v552.ear");
+		File fileOrigem = new File(dirEarteste, "kugelapp_v552.ear");
 		File fileDestino = File.createTempFile("kugelapp", ".ear");
 
 		Files.copy(fileOrigem.toPath(), fileDestino.toPath(), REPLACE_EXISTING);
@@ -67,14 +79,14 @@ public class ParamScannerMojoTest {
 
 		mojo.execute();
 
-		Assert.assertEquals("Deveria ter gerado arquivo " + file.getAbsolutePath(), true, file.exists());
+		assertEquals("Deveria ter gerado arquivo " + file.getAbsolutePath(), true, file.exists());
 
 		fileDestino.delete();
 	}
 
 	@Test
 	public void executeApenasCopiar() throws Exception {
-		File fileOrigem = new File("M:\\ERP Web REST\\ear-teste\\kugelapp_v552.ear");
+		File fileOrigem = new File(dirEarteste, "kugelapp_v552.ear");
 		File fileDestino = File.createTempFile("kugelapp", ".ear");
 
 		Files.copy(fileOrigem.toPath(), fileDestino.toPath(), REPLACE_EXISTING);
@@ -105,19 +117,19 @@ public class ParamScannerMojoTest {
 						e.getName().endsWith("parametros.json"))
 				.findAny()
 				.orElse(null);
-		Assert.assertNotNull("Deveria ter criado o arquivo no ear", zipEntry);
+		assertNotNull("Deveria ter criado o arquivo no ear", zipEntry);
 
 		byte[] bytes = new byte[128];
 		zipFile.getInputStream(zipEntry).read(bytes);
 		String conteudo = new String(bytes).trim();
-		Assert.assertEquals("Deveria ter copiado o arquivo de origem", conteudoArquivo, conteudo);
+		assertEquals("Deveria ter copiado o arquivo de origem", conteudoArquivo, conteudo);
 
 		fileDestino.delete();
 	}
 
 	private void deveConter(Map<String, Set<String>> mapProgByParam, String param, String prog) {
 		Set<String> programas = mapProgByParam.getOrDefault(param, Collections.emptySet());
-		Assert.assertEquals("Parâmetro " + param + " deveria conter " + prog + " mas contém apenas " + programas, true, programas.contains(prog));
+		assertEquals("Parâmetro " + param + " deveria conter " + prog + " mas contém apenas " + programas, true, programas.contains(prog));
 	}
 
 }

@@ -141,7 +141,7 @@ public class ParamScannerMojo extends AbstractMojo {
 				}
 			}
 
-			List<JavaClass> javaClasses = findAllClassesThatExtendsOrImplements("com/kugel/domain/param/Parametro");
+			Set<JavaClass> javaClasses = findAllClassesThatExtendsOrImplements("com/kugel/domain/param/Parametro");
 			for( JavaClass javaClass : javaClasses ){
 				if (!javaClass.getName().equals("com/kugel/domain/param/Parametro")) {
 					getLog().debug("Name: " + javaClass.getName());
@@ -175,8 +175,13 @@ public class ParamScannerMojo extends AbstractMojo {
 		return progByParamMap;
 	}
 
-	private List<JavaClass> findAllClassesThatExtendsOrImplements(String className) {
-		return classesExtendsMap.getOrDefault(className, Collections.emptyList());
+	private Set<JavaClass> findAllClassesThatExtendsOrImplements(String className) {
+		List<JavaClass> list = classesExtendsMap.getOrDefault(className, Collections.emptyList());
+		Set<JavaClass> javaClassSet = new HashSet<>(list);
+		for (JavaClass javaClass : list) {
+			javaClassSet.addAll(findAllClassesThatExtendsOrImplements(javaClass.getName()));
+		}
+		return javaClassSet;
 	}
 
 	private void scanProgByParam(Map<String, Set<String>> progByParamMap, String paramClassName, JavaMethod method, String prefix) {
@@ -207,7 +212,7 @@ public class ParamScannerMojo extends AbstractMojo {
 			scanProgByParam(progByParamMap, paramClassName, caller, prefix);
 		}
 
-		List<JavaClass> classes = findAllClassesThatExtendsOrImplements(javaClass.getName());
+		Set<JavaClass> classes = findAllClassesThatExtendsOrImplements(javaClass.getName());
 		for (JavaClass extJavaClass : classes) {
 			if (!extJavaClass.getName().equals(javaClass.getName())) {
 				for (JavaMethod extMethod : extJavaClass.getMethods()) {
