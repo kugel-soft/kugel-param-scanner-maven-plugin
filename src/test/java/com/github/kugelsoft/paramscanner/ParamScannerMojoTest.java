@@ -56,6 +56,10 @@ public class ParamScannerMojoTest {
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatDefensivos", "PW00099");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatSementes", "PW00099");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatFertilizantes", "PW00099");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW00099");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW0977A");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW90007");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW1533A");
 	}
 
 	@Test
@@ -132,4 +136,8 @@ public class ParamScannerMojoTest {
 		assertEquals("Parâmetro " + param + " deveria conter " + prog + " mas contém apenas " + programas, true, programas.contains(prog));
 	}
 
+	private void naoDeveConter(Map<String, Set<String>> mapProgByParam, String param, String prog) {
+		Set<String> programas = mapProgByParam.getOrDefault(param, Collections.emptySet());
+		assertEquals("Parâmetro " + param + "  não deveria conter " + prog, false, programas.contains(prog));
+	}
 }

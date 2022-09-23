@@ -149,6 +149,13 @@ public class ParamScannerMojo extends AbstractMojo {
 					String className = javaClass.getName().replace("/", ".");
 					if (javaClass.getMethods().isEmpty()) {
 						getLog().debug("Não encontrou método na classe " + className);
+					} else if (className.equals("com.kugel.domain.param.ParametroCorMenuBanco")) {
+						Set<String> progs = progByParamMap.get(className);
+						if (progs == null || progs.isEmpty()) {
+							progs = new HashSet<>();
+							progs.add("MENU");
+							progByParamMap.put(className, progs);
+						}
 					} else {
 						for (JavaMethod method : javaClass.getMethods()) {
 							scanProgByParam(progByParamMap, className, method, "-");
