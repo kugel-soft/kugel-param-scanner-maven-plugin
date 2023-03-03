@@ -1,5 +1,6 @@
 package com.github.kugelsoft.paramscanner;
 
+import com.github.kugelsoft.paramscanner.util.BytesUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -11,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.junit.Assert.*;
@@ -64,7 +66,7 @@ public class ParamScannerMojoTest {
 
 	@Test
 	public void execute() throws Exception {
-		File fileOrigem = new File(dirEarteste, "kugelapp_v552.ear");
+		File fileOrigem = new File(dirEarteste, "kugelapp_vteste4.ear");
 		File fileDestino = File.createTempFile("kugelapp", ".ear");
 
 		Files.copy(fileOrigem.toPath(), fileDestino.toPath(), REPLACE_EXISTING);
@@ -84,6 +86,24 @@ public class ParamScannerMojoTest {
 		mojo.execute();
 
 		assertEquals("Deveria ter gerado arquivo " + file.getAbsolutePath(), true, file.exists());
+
+		ZipFile zipFile = new ZipFile(fileDestino);
+		ZipEntry zipEntryDomain = zipFile.stream()
+				.filter(e -> e.getName().startsWith("kugel-domain"))
+				.findAny()
+				.orElse(null);
+
+		ZipInputStream zis = new ZipInputStream(zipFile.getInputStream(zipEntryDomain));
+		ZipEntry zipEntryParamJson;
+		do {
+			zipEntryParamJson = zis.getNextEntry();
+			if (zipEntryParamJson != null && zipEntryParamJson.getName().equals("parametros.json")) {
+				break;
+			}
+		} while (zipEntryParamJson != null);
+
+		// e.getName().endsWith("parametros.json")
+		assertNotNull("Deveria ter criado o arquivo parametros.json dentro do kugel-domain do ear", zipEntryParamJson);
 
 		fileDestino.delete();
 	}
@@ -123,8 +143,7 @@ public class ParamScannerMojoTest {
 				.orElse(null);
 		assertNotNull("Deveria ter criado o arquivo no ear", zipEntry);
 
-		byte[] bytes = new byte[128];
-		zipFile.getInputStream(zipEntry).read(bytes);
+		byte[] bytes = BytesUtil.readAllBytes(zipFile.getInputStream(zipEntry));
 		String conteudo = new String(bytes).trim();
 		assertEquals("Deveria ter copiado o arquivo de origem", conteudoArquivo, conteudo);
 

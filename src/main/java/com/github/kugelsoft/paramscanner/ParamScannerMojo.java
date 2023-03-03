@@ -1,4 +1,5 @@
 package com.github.kugelsoft.paramscanner;
+import com.github.kugelsoft.paramscanner.util.BytesUtil;
 import com.github.kugelsoft.paramscanner.vo.JavaClass;
 import com.github.kugelsoft.paramscanner.vo.JavaMethod;
 import org.apache.maven.plugin.AbstractMojo;
@@ -8,6 +9,7 @@ import org.apache.maven.plugins.annotations.Parameter;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
@@ -100,6 +102,7 @@ public class ParamScannerMojo extends AbstractMojo {
 	}
 
 	private void copyParamFileToJar(File paramFile, File jarFile) throws MojoExecutionException {
+		File tempJarFile = null;
 		String projectFolderName = "";
 		try (ZipFile zipFile = new ZipFile(jarFile)) {
 			Enumeration<? extends ZipEntry> entries = zipFile.entries();
@@ -107,6 +110,14 @@ public class ParamScannerMojo extends AbstractMojo {
 				ZipEntry zipEntry = entries.nextElement();
 				if (zipEntry.getName().startsWith(jsonFileProject)) {
 					projectFolderName = zipEntry.getName().split("/")[0];
+
+					if (!zipEntry.isDirectory()) {
+						InputStream is = zipFile.getInputStream(zipEntry);
+						tempJarFile = new File(System.getProperty("java.io.tmpdir"), zipEntry.getName());
+						tempJarFile.delete();
+						Files.write(tempJarFile.toPath(), BytesUtil.readAllBytes(is));
+					}
+
 					break;
 				}
 			}
@@ -114,16 +125,11 @@ public class ParamScannerMojo extends AbstractMojo {
 			throw new MojoExecutionException( "Error opening file " + jarFile, e );
 		}
 
-		URI uri = URI.create("jar:" + jarFile.toURI());
-		try (FileSystem fileSystem = FileSystems.newFileSystem(uri, new HashMap<>())) {
-			Path paramJarPath = fileSystem.getPath(projectFolderName + "/" + jsonFileDestination);
-			getLog().info("Copiando " + paramFile.getAbsolutePath() + " para " + uri + "/" + paramJarPath);
-			Files.deleteIfExists(paramJarPath);
-			Files.copy(paramFile.toPath(), paramJarPath);
-			fileSystem.close();
-			getLog().info("Cópia realizada com sucesso");
-		} catch (Exception e) {
-			throw new MojoExecutionException( "Error opening file " + jarFile, e );
+		if (tempJarFile == null) {
+			copyFileToJar(paramFile, jarFile, projectFolderName + "/" + jsonFileDestination);
+		} else {
+			copyFileToJar(paramFile, tempJarFile, jsonFileDestination);
+			copyFileToJar(tempJarFile, jarFile, projectFolderName);
 		}
 	}
 
@@ -279,6 +285,21 @@ public class ParamScannerMojo extends AbstractMojo {
 			}
 		}
 		return superClasses;
+	}
+
+	private void copyFileToJar(File fileToCopy, File destJarFile, String destPath) throws MojoExecutionException {
+		URI uri;
+		uri = URI.create("jar:" + destJarFile.toURI());
+		try (FileSystem fileSystem = FileSystems.newFileSystem(uri, new HashMap<>())) {
+			Path paramJarPath = fileSystem.getPath(destPath);
+			getLog().info("Copiando " + fileToCopy.getAbsolutePath() + " para " + uri + "/" + paramJarPath);
+			Files.deleteIfExists(paramJarPath);
+			Files.copy(fileToCopy.toPath(), paramJarPath);
+			fileSystem.close();
+			getLog().info("Cópia realizada com sucesso");
+		} catch (Exception e) {
+			throw new MojoExecutionException( "Error opening file " + destJarFile, e );
+		}
 	}
 
 }
