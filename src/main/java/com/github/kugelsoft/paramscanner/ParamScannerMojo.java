@@ -164,7 +164,7 @@ public class ParamScannerMojo extends AbstractMojo {
 						}
 					} else {
 						for (JavaMethod method : javaClass.getMethods()) {
-							scanProgByParam(progByParamMap, className, method, "-");
+							scanProgByParamRecursive(progByParamMap, className, method, "-", new HashSet<>());
 						}
 
 						Set<String> progs = progByParamMap.get(className);
@@ -197,7 +197,15 @@ public class ParamScannerMojo extends AbstractMojo {
 		return javaClassSet;
 	}
 
-	private void scanProgByParam(Map<String, Set<String>> progByParamMap, String paramClassName, JavaMethod method, String prefix) {
+	private void scanProgByParamRecursive(Map<String, Set<String>> progByParamMap, String paramClassName, JavaMethod method, String prefix, HashSet<JavaMethod> methodSet) {
+		if (methodSet.contains(method)) {
+			getLog().debug("Ignorando recursividade");
+			return;
+		}
+
+		HashSet<JavaMethod> newMethodSet = new HashSet<>(methodSet);
+		newMethodSet.add(method);
+
 		JavaClass javaClass = method.getJavaClass();
 		if (javaClass.getSimpleClassName().equals("GenericRest")) {
 			getLog().debug("Ignorando GenericRest pois utilizado por todos os programas");
@@ -217,12 +225,12 @@ public class ParamScannerMojo extends AbstractMojo {
 			putProgByParam(progByParamMap, paramClassName, "TAREFA_AGENDADA");
 		} else if (isClasseZoomDaoOuZoomService(javaClass)) {
 			for (JavaClass javaClassUsesAsField : javaClass.getClassesUsesAsField()) {
-				scanProgByParam(progByParamMap, paramClassName, JavaMethod.emptyMethod(javaClassUsesAsField), prefix);
+				scanProgByParamRecursive(progByParamMap, paramClassName, JavaMethod.emptyMethod(javaClassUsesAsField), prefix, newMethodSet);
 			}
 		}
 
 		for (JavaMethod caller : method.getCallers()) {
-			scanProgByParam(progByParamMap, paramClassName, caller, prefix);
+			scanProgByParamRecursive(progByParamMap, paramClassName, caller, prefix, newMethodSet);
 		}
 
 		Set<JavaClass> classes = findAllClassesThatExtendsOrImplements(javaClass.getName());
@@ -231,7 +239,7 @@ public class ParamScannerMojo extends AbstractMojo {
 				for (JavaMethod extMethod : extJavaClass.getMethods()) {
 					if (extMethod.getMethodName().equals(method.getMethodName()) &&
 							extMethod.getMethodDesc().equals(method.getMethodDesc())) {
-						scanProgByParam(progByParamMap, paramClassName, extMethod, prefix);
+						scanProgByParamRecursive(progByParamMap, paramClassName, extMethod, prefix, newMethodSet);
 					}
 				}
 			}

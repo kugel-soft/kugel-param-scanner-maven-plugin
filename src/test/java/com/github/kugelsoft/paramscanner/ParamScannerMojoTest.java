@@ -150,6 +150,39 @@ public class ParamScannerMojoTest {
 		fileDestino.delete();
 	}
 
+	@Test
+	public void createMapProgByParamComRecursividade() throws Exception {
+		ParamScannerMojo mojo = new ParamScannerMojo();
+
+		File file = new File(dirEarteste, "kugelapp_vteste5.ear");
+
+		Map<String, Set<String>> mapProgByParam = mojo.createMapProgByParam(file);
+
+		for (Map.Entry<String, Set<String>> entry : mapProgByParam.entrySet()) {
+			System.out.println(entry.getKey() + "=" + entry.getValue());
+		}
+
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroPortaSocketCameraPlaca", "PW90999");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosAnaliseMinhaGranja", "PW90007");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosCopiarDC0045", "PW0045A");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosCopiarDC0045", "PW0072B");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroChaveGoogleMaps", "MENU");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroImagemCarimboMAPAAlimentacaoAnimal", "PW1533A");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaCodTransacaoComercialTransferencia", "PR51946");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaPortadorPix", "PW00323");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroNumDiasNeZoom", "PW00173");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroNumDiasNfZoom", "PW00120");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroNumDiasNfZoom", "PW0977A");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaCamposPW00182", "PW00182");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatDefensivos", "PW00099");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatSementes", "PW00099");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatFertilizantes", "PW00099");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW00099");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW0977A");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW90007");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW1533A");
+	}
+
 	private void deveConter(Map<String, Set<String>> mapProgByParam, String param, String prog) {
 		Set<String> programas = mapProgByParam.getOrDefault(param, Collections.emptySet());
 		assertEquals("Parâmetro " + param + " deveria conter " + prog + " mas contém apenas " + programas, true, programas.contains(prog));

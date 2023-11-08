@@ -1,6 +1,7 @@
 package com.github.kugelsoft.paramscanner.vo;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class JavaMethod implements Comparable<JavaMethod> {
@@ -39,12 +40,18 @@ public class JavaMethod implements Comparable<JavaMethod> {
 
 	@Override
 	public int hashCode() {
-		return (javaClass.getName() + "." + methodName + methodDesc).hashCode();
+		return Objects.hash(javaClass.getName(), methodName, methodDesc);
 	}
 	
 	@Override
 	public boolean equals(Object obj) {
-		return obj != null && obj.getClass() == JavaMethod.class && obj.hashCode() == this.hashCode();
+		if (obj == null || obj.getClass() != JavaMethod.class) {
+			return false;
+		}
+		JavaMethod other = (JavaMethod) obj;
+		return Objects.equals(javaClass.getName(), other.javaClass.getName()) &&
+				Objects.equals(methodName, other.methodName) &&
+				Objects.equals(methodDesc, other.methodDesc);
 	}
 
 	public int compareTo(JavaMethod o) {
