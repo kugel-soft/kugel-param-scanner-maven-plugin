@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.github.kugel-soft</groupId>
 	<artifactId>kugel-param-scanner-maven-plugin</artifactId>
-	<version>1.8</version>
+	<version>2.0</version>
 	<packaging>maven-plugin</packaging>
 	<name>kugel-param-scanner-maven-plugin</name>
 	<description>A maven plugin to scan the parameters of Kugel WEB-ERP.</description>

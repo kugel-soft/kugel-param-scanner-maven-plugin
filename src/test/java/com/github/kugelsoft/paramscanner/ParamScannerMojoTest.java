@@ -1,20 +1,20 @@
 package com.github.kugelsoft.paramscanner;
 
 import com.github.kugelsoft.paramscanner.util.BytesUtil;
+import com.github.kugelsoft.paramscanner.util.MapUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 
 public class ParamScannerMojoTest {
@@ -154,6 +154,10 @@ public class ParamScannerMojoTest {
 	public void createMapProgByParamComRecursividade() throws Exception {
 		ParamScannerMojo mojo = new ParamScannerMojo();
 
+		mojo.parametrosProgramasMap = MapUtil.of(
+				"com.kugel.domain.param.ParametroCorMenuBanco", asList("MENU")
+		);
+
 		File file = new File(dirEarteste, "kugelapp_vteste5.ear");
 
 		Map<String, Set<String>> mapProgByParam = mojo.createMapProgByParam(file);
@@ -181,6 +185,52 @@ public class ParamScannerMojoTest {
 		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW0977A");
 		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW90007");
 		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW1533A");
+	}
+
+	@Test
+	public void createMapProgByParamComParamIgnorar() throws Exception {
+		ParamScannerMojo mojo = new ParamScannerMojo();
+
+		File file = new File(dirEarteste, "kugelapp_v7682.ear");
+
+		mojo.parametrosProgramasMap = MapUtil.of(
+				"com.kugel.domain.param.ParametroEndereracoIntegracaoErpWeb", asList("MENU"),
+				"com.kugel.domain.param.ParametroBananas", asList("PW00125","PW00265"),
+				"com.kugel.domain.param.ParametroCorMenuBanco", asList("MENU")
+		);
+		mojo.jarsIgnorar = new HashSet<>(Arrays.asList("kugel-common","kugel-integracao-erp-web","kugel-framework"));
+
+		Map<String, Set<String>> mapProgDefaultMap = new HashMap<>();
+		mapProgDefaultMap.put("", new HashSet<>(asList("MENU")));
+
+		Map<String, Set<String>> mapProgByParam = mojo.createMapProgByParam(file);
+
+		for (Map.Entry<String, Set<String>> entry : mapProgByParam.entrySet()) {
+			System.out.println(entry.getKey() + "=" + entry.getValue());
+		}
+
+		assertEquals("MENU", String.join(",", mapProgByParam.getOrDefault("com.kugel.domain.param.ParametroEndereracoIntegracaoErpWeb", Collections.emptySet())));
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBananas", "PW00125");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBananas", "PW00265");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroBananas", "PW00124");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "MENU");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW0977A");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW90007");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroCorMenuBanco", "PW1533A");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosAnaliseMinhaGranja", "PW90007");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosCopiarDC0045", "PW0045A");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroBancosCopiarDC0045", "PW0072B");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroChaveGoogleMaps", "MENU");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroImagemCarimboMAPAAlimentacaoAnimal", "PW1533A");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaCodTransacaoComercialTransferencia", "PR51946");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaPortadorPix", "PW00323");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroNumDiasNeZoom", "PW00173");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroNumDiasNfZoom", "PW00120");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroNumDiasNfZoom", "PW0079A");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatDefensivos", "PW00099");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatSementes", "PW00099");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatFertilizantes", "PW00099");
+		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroEndereracoIntegracaoErpWeb", "PW00099");
 	}
 
 	private void deveConter(Map<String, Set<String>> mapProgByParam, String param, String prog) {

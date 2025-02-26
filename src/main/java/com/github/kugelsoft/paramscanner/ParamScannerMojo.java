@@ -1,4 +1,5 @@
 package com.github.kugelsoft.paramscanner;
+import com.github.kugelsoft.paramscanner.exceptions.LimiteMaximoProgramasException;
 import com.github.kugelsoft.paramscanner.util.BytesUtil;
 import com.github.kugelsoft.paramscanner.vo.JavaClass;
 import com.github.kugelsoft.paramscanner.vo.JavaMethod;
@@ -19,6 +20,8 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import static com.github.kugelsoft.paramscanner.exceptions.LimiteMaximoProgramasException.LIMITE_PROGR_POR_PARAM;
 
 @Mojo( name = "scanner", threadSafe = true )
 public class ParamScannerMojo extends AbstractMojo {
@@ -45,6 +48,12 @@ public class ParamScannerMojo extends AbstractMojo {
 
 	@Parameter( property = "scanner.jsonFileCopyOrigin", defaultValue = "" )
 	String jsonFileCopyOrigin;
+
+	@Parameter( property = "scanner.parametrosProgramasMap", defaultValue = "" )
+	Map<String,List<String>> parametrosProgramasMap;
+
+	@Parameter( property = "scanner.jarsIgnorar", defaultValue = "" )
+	Set<String> jarsIgnorar;
 
 	public void execute() throws MojoExecutionException {
 		File jarFile = new File(directory, finalName + ".jar");
@@ -89,8 +98,6 @@ public class ParamScannerMojo extends AbstractMojo {
 
 				writer.newLine();
 				writer.append("}");
-
-				writer.close();
 			} catch (Exception e) {
 				throw new MojoExecutionException("Error creating file " + paramFile, e);
 			}
@@ -136,7 +143,7 @@ public class ParamScannerMojo extends AbstractMojo {
 	protected Map<String, Set<String>> createMapProgByParam(File file) {
 		TreeMap<String, Set<String>> progByParamMap = new TreeMap<>();
 		try {
-			JavaScanner javaScanner = new JavaScanner(file.getAbsolutePath());
+			JavaScanner javaScanner = new JavaScanner(file.getAbsolutePath(), jarsIgnorar);
 			todasClasses = javaScanner.scanAllClasses().values();
 			classesExtendsMap = new HashMap<>();
 			for (JavaClass javaClass : todasClasses) {
@@ -144,6 +151,14 @@ public class ParamScannerMojo extends AbstractMojo {
 					List<JavaClass> classes = classesExtendsMap
 							.computeIfAbsent(superClass.getName(), k -> new ArrayList<>());
 					classes.add(javaClass);
+				}
+			}
+
+			if (parametrosProgramasMap == null) {
+				parametrosProgramasMap = new HashMap<>();
+			} else {
+				for (Map.Entry<String, List<String>> entry : parametrosProgramasMap.entrySet()) {
+					progByParamMap.put(entry.getKey(), new HashSet<>(entry.getValue()));
 				}
 			}
 
@@ -155,16 +170,15 @@ public class ParamScannerMojo extends AbstractMojo {
 					String className = javaClass.getName().replace("/", ".");
 					if (javaClass.getMethods().isEmpty()) {
 						getLog().debug("Não encontrou método na classe " + className);
-					} else if (className.equals("com.kugel.domain.param.ParametroCorMenuBanco")) {
-						Set<String> progs = progByParamMap.get(className);
-						if (progs == null || progs.isEmpty()) {
-							progs = new HashSet<>();
-							progs.add("MENU");
-							progByParamMap.put(className, progs);
-						}
+					} else if (parametrosProgramasMap.containsKey(className)) {
+						getLog().info("Ignorando escaneamento da classe " + className + " pois já foi definida na propriedade parametrosProgramasMap");
 					} else {
-						for (JavaMethod method : javaClass.getMethods()) {
-							scanProgByParamRecursive(progByParamMap, className, method, "-", new HashSet<>());
+						try {
+							for (JavaMethod method : javaClass.getMethods()) {
+								scanProgByParamRecursive(progByParamMap, className, method, "-", new HashSet<>());
+							}
+						} catch (LimiteMaximoProgramasException ex) {
+							getLog().warn(ex.getMessage());
 						}
 
 						Set<String> progs = progByParamMap.get(className);
@@ -197,7 +211,7 @@ public class ParamScannerMojo extends AbstractMojo {
 		return javaClassSet;
 	}
 
-	private void scanProgByParamRecursive(Map<String, Set<String>> progByParamMap, String paramClassName, JavaMethod method, String prefix, HashSet<JavaMethod> methodSet) {
+	private void scanProgByParamRecursive(Map<String, Set<String>> progByParamMap, String paramClassName, JavaMethod method, String prefix, HashSet<JavaMethod> methodSet) throws LimiteMaximoProgramasException {
 		if (methodSet.contains(method)) {
 			getLog().debug("Ignorando recursividade");
 			return;
@@ -277,9 +291,12 @@ public class ParamScannerMojo extends AbstractMojo {
 		return false;
 	}
 
-	private Set<String> putProgByParam(Map<String, Set<String>> progByParamMap, String paramClassName, String prog) {
+	private Set<String> putProgByParam(Map<String, Set<String>> progByParamMap, String paramClassName, String prog) throws LimiteMaximoProgramasException {
 		Set<String> progSet = progByParamMap.computeIfAbsent(paramClassName, k -> new TreeSet<>());
 		progSet.add(prog);
+		if (progSet.size() >= LIMITE_PROGR_POR_PARAM) {
+			throw new LimiteMaximoProgramasException(paramClassName);
+		}
 		return progSet;
 	}
 

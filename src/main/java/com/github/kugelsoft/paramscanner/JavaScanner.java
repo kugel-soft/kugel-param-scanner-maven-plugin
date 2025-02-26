@@ -30,15 +30,19 @@ import java.util.zip.ZipInputStream;
 public class JavaScanner {
 	
 	private String jarPath;
+	private Set<String> jarsIgnorar;
 
 	/**
 	 * Create a new JavaScanner with the JarFile containing at <b>jarPath</b>
-	 * @param jarPath OS path to the jar file that contains the class
-     * @throws SecurityException if access to the file is denied
-     *         by the SecurityManager
+	 *
+	 * @param jarPath     OS path to the jar file that contains the class
+	 * @param jarsIgnorar
+	 * @throws SecurityException if access to the file is denied
+	 *                           by the SecurityManager
 	 */
-	public JavaScanner(String jarPath) {
+	public JavaScanner(String jarPath, Set<String> jarsIgnorar) {
 		this.jarPath = jarPath;
+		this.jarsIgnorar = jarsIgnorar;
 	}
 
 	public HashMap<String, JavaClass> scanAllClasses() {
@@ -62,7 +66,7 @@ public class JavaScanner {
 					reader.accept(scanClassVisitor, 0);
 
 					stream.close();
-				} else if (name.startsWith("kugel") && !name.contains("/") && name.endsWith(".jar")) { // escanear dependencias que estão empacotadas em JAR como o kugel-report
+				} else if (name.startsWith("kugel") && !name.contains("/") && name.endsWith(".jar") && !isIgnorarJar(name)) { // escanear dependencias que estão empacotadas em JAR como o kugel-report
 					File file = unzipFile(path, name);
 					scanAllClasses(scanClassVisitor, file.getAbsolutePath());
 					file.delete();
@@ -82,6 +86,17 @@ public class JavaScanner {
 		HashMap<String, JavaClass> classHashMap = scanClassVisitor.getClassMap();
 		scanOverrideMethods(classHashMap.values());
 		return classHashMap;
+	}
+
+	private boolean isIgnorarJar(String name) {
+		if (jarsIgnorar != null) {
+			for (String jarIgnorar : jarsIgnorar) {
+				if (name.startsWith(jarIgnorar)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private void scanOverrideMethods(Collection<JavaClass> classes) {
