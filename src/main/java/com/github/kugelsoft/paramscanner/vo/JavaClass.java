@@ -12,12 +12,14 @@ public class JavaClass implements Comparable<JavaClass> {
 	private final String name;
 	private final Set<JavaMethod> methods;
 	private final Set<JavaClass> classesUsesAsField;
+	private boolean temAnnotationPath;
 
 	public JavaClass(String name) {
 		this.name = name;
 		this.methods = new HashSet<>();
 		this.interfaces = new ArrayList<>();
 		this.classesUsesAsField = new HashSet<>();
+		this.temAnnotationPath = false;
 	}
 
 	public String getName() {
@@ -80,6 +82,14 @@ public class JavaClass implements Comparable<JavaClass> {
 			packageName = this.name.substring( 0, index ).replace("/", ".");
 		}
 		return packageName;
+	}
+
+	public void setTemAnnotationPath(boolean temAnnotationPath) {
+		this.temAnnotationPath = temAnnotationPath;
+	}
+
+	public boolean isTemAnnotationPath() {
+		return temAnnotationPath;
 	}
 
 	public Set<JavaClass> getClassesUsesAsField() {

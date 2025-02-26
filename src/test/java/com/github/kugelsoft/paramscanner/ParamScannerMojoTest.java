@@ -231,6 +231,10 @@ public class ParamScannerMojoTest {
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatSementes", "PW00099");
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroCodigosGrItemMatFertilizantes", "PW00099");
 		naoDeveConter(mapProgByParam, "com.kugel.domain.param.ParametroEndereracoIntegracaoErpWeb", "PW00099");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaEmpresasImplanta", "INTEGRACAO");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametrosAuroraConsumoWebService", "PRCOBOL");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametrosAuroraConsumoWebService", "PRJAVA");
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametrosAuroraConsumoWebService", "PW00474");
 	}
 
 	private void deveConter(Map<String, Set<String>> mapProgByParam, String param, String prog) {

@@ -237,6 +237,9 @@ public class ParamScannerMojo extends AbstractMojo {
 			putProgByParam(progByParamMap, paramClassName, "MENU");
 		} else if (isClasseTarefaAgendadaAntiga(javaClass)) {
 			putProgByParam(progByParamMap, paramClassName, "TAREFA_AGENDADA");
+		} else if (isClasseRest(javaClass)) {
+			String prog = simpleClassName.toUpperCase().replace("REST", "");
+			putProgByParam(progByParamMap, paramClassName, prog);
 		} else if (isClasseZoomDaoOuZoomService(javaClass)) {
 			for (JavaClass javaClassUsesAsField : javaClass.getClassesUsesAsField()) {
 				scanProgByParamRecursive(progByParamMap, paramClassName, JavaMethod.emptyMethod(javaClassUsesAsField), prefix, newMethodSet);
@@ -278,6 +281,10 @@ public class ParamScannerMojo extends AbstractMojo {
 
 	private boolean isClasseTarefaAgendadaAntiga(JavaClass javaClass) {
 		return javaClass.getSuperClass().getSimpleClassName().equals("TarefaAgendadaAbstract");
+	}
+
+	private boolean isClasseRest(JavaClass javaClass) {
+		return javaClass.isTemAnnotationPath();
 	}
 
 	private boolean isClasseZoomDaoOuZoomService(JavaClass javaClass) {

@@ -2,16 +2,15 @@ package com.github.kugelsoft.paramscanner.visitors;
 
 import com.github.kugelsoft.paramscanner.vo.JavaClass;
 import com.github.kugelsoft.paramscanner.vo.JavaMethod;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.*;
 
 import java.util.HashMap;
 
 public class ScanClassVisitor extends ClassVisitor {
 
 	private final HashMap<String, JavaClass> classMap;
+
+	private JavaClass lastJavaClass;
 
 	private final ThisMethodVisitor methodVisitor;
 
@@ -36,6 +35,7 @@ public class ScanClassVisitor extends ClassVisitor {
 			JavaClass interfClass = getJavaClass(interf);
 			javaClass.getInterfaces().add(interfClass);
 		}
+		this.lastJavaClass = javaClass;
 	}
 
 	@Override
@@ -55,6 +55,14 @@ public class ScanClassVisitor extends ClassVisitor {
 			typeClass.getClassesUsesAsField().add(callerClass);
 		}
 		return super.visitField(access, name, desc, signature, value);
+	}
+
+	@Override
+	public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+		if (desc.contains("javax/ws/rs/Path")) {
+			this.lastJavaClass.setTemAnnotationPath(true);
+		}
+		return super.visitAnnotation(desc, visible);
 	}
 
 	class ThisMethodVisitor extends MethodVisitor {
