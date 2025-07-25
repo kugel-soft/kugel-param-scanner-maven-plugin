@@ -237,6 +237,21 @@ public class ParamScannerMojoTest {
 		deveConter(mapProgByParam, "com.kugel.domain.param.ParametrosAuroraConsumoWebService", "PW00474");
 	}
 
+	@Test
+	public void createMapProgByParamComLambda() throws Exception {
+		ParamScannerMojo mojo = new ParamScannerMojo();
+
+		File file = new File(dirEarteste, "kugelapp_vteste6.ear");
+
+		Map<String, Set<String>> mapProgByParam = mojo.createMapProgByParam(file);
+
+		for (Map.Entry<String, Set<String>> entry : mapProgByParam.entrySet()) {
+			System.out.println(entry.getKey() + "=" + entry.getValue());
+		}
+
+		deveConter(mapProgByParam, "com.kugel.domain.param.ParametroTabelaContaContabilGrItemContratoVendaPW00341", "PW2096A");
+	}
+
 	private void deveConter(Map<String, Set<String>> mapProgByParam, String param, String prog) {
 		Set<String> programas = mapProgByParam.getOrDefault(param, Collections.emptySet());
 		assertEquals("Parâmetro " + param + " deveria conter " + prog + " mas contém apenas " + programas, true, programas.contains(prog));

@@ -226,7 +226,7 @@ public class ParamScannerMojo extends AbstractMojo {
 			return;
 		}
 
-		getLog().debug(prefix + " " + javaClass.getSimpleClassName() + "." + method.getMethodName() + " - " + method.getMethodDesc());
+		//getLog().debug(prefix + " " + javaClass.getSimpleClassName() + "." + method.getMethodName() + " - " + method.getMethodDesc());
 		prefix += "-";
 
 		String simpleClassName = javaClass.getSimpleClassName();

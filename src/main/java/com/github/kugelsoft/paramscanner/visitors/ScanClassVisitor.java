@@ -24,6 +24,7 @@ public class ScanClassVisitor extends ClassVisitor {
 		return classMap;
 	}
 
+	@Override
 	public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
 		this.methodVisitor.setActualClassName(name);
 		JavaClass javaClass = getJavaClass(name);
@@ -91,6 +92,23 @@ public class ScanClassVisitor extends ClassVisitor {
 		
 		public JavaClass getCallerClass() {
 			return callerClass;
+		}
+
+		@Override
+		public void visitInvokeDynamicInsn(String name, String descriptor, Handle bootstrapMethodHandle, Object... bootstrapMethodArguments) {
+			for (Object obj : bootstrapMethodArguments) {
+				if (obj instanceof Handle) {
+					Handle handle = (Handle) obj;
+					if (handle.getOwner().startsWith("com/kugel/")) {
+						JavaClass calleeClass = getJavaClass(handle.getOwner());
+						JavaMethod calleeMethod = calleeClass.addMethod(handle.getName(), handle.getDesc());
+
+						JavaMethod callerMethod = callerClass.addMethod(callerMethodName, callerMethodDesc);
+
+						calleeMethod.getCallers().add(callerMethod);
+					}
+				}
+			}
 		}
 
 		@Override
